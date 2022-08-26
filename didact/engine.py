@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from math import prod
 import math
 
 import numpy as np
 from graphviz import Digraph
+
+from didact.autograd.backwards import add_backward, mul_backward, pow_backward
 
 
 class Op(Enum):
@@ -80,18 +81,16 @@ class Value:
             return
 
         a, b = self.parent_values
-        if self.parent_op == "add":
-            a.backward(grad)
-            b.backward(grad)
 
-        elif self.parent_op == "mul":
-            a.backward(grad * b.n)
-            b.backward(grad * a.n)
+        backwards_fn = {
+            "add": add_backward,
+            "mul": mul_backward,
+            "pow": pow_backward,
+        }[self.parent_op]
 
-        elif self.parent_op == "pow":
-            a, b = self.parent_values
-            a.backward(grad * b.n * a.n ** (b.n - 1))
-            b.backward(grad * (a.n ** b.n) * math.log(a.n))
+        a_grad, b_grad = backwards_fn(a.n, b.n, grad)
+        a.backward(a_grad)
+        b.backward(b_grad)
 
     def zero_grad(self):
         self.grad = 0
@@ -101,7 +100,14 @@ class Value:
                 parent.zero_grad()
 
     def __repr__(self):
-        return f"Value({self.n}, parent_op={self.parent_op}, parent_values={self.parent_values})"
+        return self.repr()
+
+    def repr(self, depth=1):
+        if depth != 0:
+            return f"Value({self.n: 0.4g}, parent_op={repr(self.parent_op)}, parent_values=[{', '.join(value.repr(depth=depth-1) for value in self.parent_values)}])"
+
+        else:
+            return f"Value({self.n: 0.4g}, parent_op={repr(self.parent_op)}, parent_values={'[...]' if self.parent_values else '[]'})"
 
 
 def register_op(op_name):
