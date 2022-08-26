@@ -114,7 +114,7 @@ def register_op(op_name):
     func = getattr(Value, op_name)
 
     setattr(Value, f"__{op_name}__", lambda self, other: func(self, other))
-    setattr(Value, f"__r{op_name}__", lambda self, other: func(other, self))
+    setattr(Value, f"__r{op_name}__", lambda self, other: func(self, other))
 
 
 for op in ["add", "sub", "mul", "div", "pow"]:
